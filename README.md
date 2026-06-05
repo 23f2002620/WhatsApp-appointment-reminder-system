@@ -1,4 +1,4 @@
-# AppointMint — WhatsApp/SMS Appointment Reminder System
+# WhatsApp Appointment Reminder System
 
 A single-file appointment reminder system with:
 - Booking form (name, phone, date/time)

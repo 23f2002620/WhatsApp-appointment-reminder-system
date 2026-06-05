@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AppointMint — Reminder System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #21262d;
+    --mint:      #3dffa0;
+    --mint-dim:  #1a7a4a;
+    --amber:     #ffb347;
+    --red:       #ff5c5c;
+    --txt:       #e6edf3;
+    --txt-muted: #7d8590;
+    --radius:    12px;
+    --mono:      'DM Mono', monospace;
+    --serif:     'DM Serif Display', serif;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  header {
+    padding: 48px 0 36px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .logo { display: flex; flex-direction: column; gap: 2px; }
+  .logo-name {
+    font-family: var(--serif);
+    font-size: 2.4rem;
+    color: var(--mint);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .logo-name em { color: var(--txt-muted); font-style: italic; }
+  .logo-tagline { font-family: var(--mono); font-size: 11px; color: var(--txt-muted); letter-spacing: 2px; text-transform: uppercase; }
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: #0f2a1a;
+    border: 1px solid var(--mint-dim);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--mint);
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  .setup-banner {
+    background: #1a1200;
+    border: 1px solid #5a3e00;
+    border-radius: var(--radius);
+    padding: 18px 24px;
+    margin-bottom: 36px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .setup-banner .icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .setup-banner h3 { font-size: 14px; font-weight: 600; color: var(--amber); margin-bottom: 6px; }
+  .setup-banner p { font-size: 13px; color: #b8943a; line-height: 1.5; }
+  .setup-banner code { background: #2a1e00; border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 12px; color: var(--amber); }
+
+  .main-grid { display: grid; grid-template-columns: 420px 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 860px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-header h2 { font-family: var(--serif); font-size: 1.2rem; font-weight: normal; }
+  .card-header h2 span { color: var(--mint); }
+  .card-body { padding: 24px; }
+
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--txt-muted); letter-spacing: 1.5px; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--txt);
+    font-family: var(--sans); font-size: 14px;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--mint); box-shadow: 0 0 0 3px rgba(61,255,160,.08); }
+  .field input::placeholder { color: var(--txt-muted); }
+  .field .hint { font-size: 12px; color: var(--txt-muted); margin-top: 5px; }
+
+  .submit-btn {
+    width: 100%;
+    background: var(--mint);
+    color: #020d06;
+    border: none;
+    border-radius: 8px;
+    padding: 13px 20px;
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .2s, transform .1s, box-shadow .2s;
+    box-shadow: 0 0 0 0 rgba(61,255,160,0);
+    margin-top: 8px;
+  }
+  .submit-btn:hover { background: #5affb0; box-shadow: 0 0 20px rgba(61,255,160,.25); }
+  .submit-btn:active { transform: scale(.98); }
+  .submit-btn:disabled { background: var(--mint-dim); color: #aaa; cursor: not-allowed; }
+
+  #toast {
+    position: fixed; bottom: 32px; right: 32px; z-index: 999;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    font-size: 13px; min-width: 280px; max-width: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    transform: translateY(120%); opacity: 0;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--mint-dim); }
+  #toast.error   { border-color: #5a1a1a; }
+  #toast.info    { border-color: #1a3a5a; }
+  .toast-icon { font-size: 18px; flex-shrink: 0; }
+  .toast-body { flex: 1; }
+  .toast-title { font-weight: 600; margin-bottom: 2px; }
+  .toast-msg { color: var(--txt-muted); font-size: 12px; }
+
+  .dash-controls {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .badge {
+    background: var(--mint-dim);
+    color: var(--mint);
+    font-family: var(--mono); font-size: 11px;
+    border-radius: 100px; padding: 2px 10px;
+  }
+  .icon-btn {
+    background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--txt-muted); cursor: pointer; padding: 5px 9px; font-size: 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .icon-btn:hover { border-color: var(--mint); color: var(--mint); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--txt-muted); padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,.025); }
+  tbody td { padding: 13px 14px; vertical-align: middle; }
+  .cell-name { font-weight: 500; }
+  .cell-phone { font-family: var(--mono); color: var(--txt-muted); font-size: 12px; }
+  .cell-time { font-family: var(--mono); font-size: 12px; }
+  .cell-time .date { color: var(--txt-muted); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 100px; padding: 3px 10px;
+    font-size: 11px; font-weight: 500; font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .chip-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .chip.sent      { background:#0f2a1a; color:var(--mint);  } .chip.sent .chip-dot { background:var(--mint); }
+  .chip.pending   { background:#1a1200; color:var(--amber); } .chip.pending .chip-dot { background:var(--amber); }
+  .chip.reminded  { background:#0a1a2a; color:#5bbcff;      } .chip.reminded .chip-dot { background:#5bbcff; }
+  .chip.simulated { background:#1e1520; color:#c084fc;      } .chip.simulated .chip-dot { background:#c084fc; }
+
+  .countdown {
+    font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .countdown.urgent { background:#2a0f0f; color:var(--red); animation: blink 1.4s infinite; }
+  .countdown.soon   { background:#1a1200; color:var(--amber); }
+  .countdown.future { color: var(--txt-muted); }
+  .countdown.past   { color: var(--txt-muted); opacity:.5; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  .empty {
+    text-align: center; padding: 56px 24px;
+    color: var(--txt-muted);
+  }
+  .empty .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: .4; }
+  .empty h3 { font-family: var(--serif); font-weight: normal; font-size: 1.1rem; color: var(--txt); margin-bottom: 6px; }
+  .empty p  { font-size: 13px; }
+
+  .loader { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 40px; color: var(--txt-muted); font-size: 13px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--mint); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg) } }
+
+  .config-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .config-section h3 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--txt-muted); margin-bottom: 16px;
+  }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .config-grid { grid-template-columns: 1fr; } }
+  .config-grid .field { margin-bottom: 0; }
+  .config-save-btn {
+    margin-top: 16px;
+    background: transparent; border: 1px solid var(--mint-dim);
+    color: var(--mint); border-radius: 8px; padding: 9px 20px;
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    transition: background .2s;
+  }
+  .config-save-btn:hover { background: #0f2a1a; }
+
+  .log-wrap { max-height: 180px; overflow-y: auto; }
+  .log-entry {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { font-family: var(--mono); color: var(--txt-muted); white-space: nowrap; }
+  .log-msg { color: var(--txt); flex: 1; }
+  .log-msg.success { color: var(--mint); }
+  .log-msg.warning { color: var(--amber); }
+  .log-msg.error   { color: var(--red); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--txt-muted); }
+</style>
+</head>
+<body>
+
+<!-- ────────────────── TOAST ────────────────── -->
+<div id="toast">
+  <div class="toast-icon" id="toast-icon">✓</div>
+  <div class="toast-body">
+    <div class="toast-title" id="toast-title"></div>
+    <div class="toast-msg"   id="toast-msg"></div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- ─── HEADER ──────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <div class="logo-name">Appoint<em>Mint</em></div>
+      <div class="logo-tagline">Automated Reminder System</div>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span id="system-status">Initialising…</span>
+    </div>
+  </header>
+
+  <!-- ─── SETUP BANNER ─────────────────────────────────────── -->
+  <div class="setup-banner" id="setup-banner">
+    <div class="icon">⚙️</div>
+    <div>
+      <h3>Configuration Required</h3>
+      <p>
+        Fill in your credentials below to connect to <strong>Supabase</strong> (database) and
+        <strong>Twilio</strong> (SMS/WhatsApp). Until then, the system runs in
+        <code>SIMULATION MODE</code> — appointments are stored in memory and messages are
+        logged to the activity log instead of actually being sent.
+      </p>
+    </div>
+  </div>
+
+  <!-- ─── MAIN GRID ─────────────────────────────────────────── -->
+  <div class="main-grid">
+
+    <!-- LEFT: BOOKING FORM ──────────────────────────────────── -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h2>Book <span>Appointment</span></h2>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>Customer Name</label>
+            <input type="text" id="f-name" placeholder="Jane Doe" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>Phone Number</label>
+            <input type="tel" id="f-phone" placeholder="+91 98765 43210" autocomplete="off" />
+            <div class="hint">Include country code. For WhatsApp, use the same number registered on WhatsApp.</div>
+          </div>
+          <div class="field">
+            <label>Appointment Date & Time</label>
+            <input type="datetime-local" id="f-time" />
+          </div>
+          <button class="submit-btn" id="submit-btn" onclick="submitAppointment()">
+            <span>📅</span> Book & Send Confirmation
+          </button>
+        </div>
+      </div>
+
+      <!-- ACTIVITY LOG ────────────────────────────────────────── -->
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <h2>Activity <span>Log</span></h2>
+          <button class="icon-btn" onclick="clearLog()" title="Clear log">✕</button>
+        </div>
+        <div class="card-body" style="padding:12px 16px;">
+          <div class="log-wrap" id="activity-log">
+            <div class="log-entry">
+              <span class="log-time">--:--:--</span>
+              <span class="log-msg">System starting…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: DASHBOARD ────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Appointments <span>Dashboard</span></h2>
+        <div class="dash-controls">
+          <span class="badge" id="appt-count">0</span>
+          <button class="icon-btn" onclick="loadAppointments()" title="Refresh">⟳</button>
+        </div>
+      </div>
+      <div id="dashboard-body">
+        <div class="loader"><div class="spinner"></div> Loading…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// STATE
+let CONFIG = {
+  supabaseUrl:   '',
+  supabaseKey:   '',
+  twilioSid:     '',
+  twilioToken:   '',
+  twilioFrom:    '',
+  messageType:   'whatsapp',  
+  simMode:       true,
+};
+
+// In-memory store used when Supabase is not configured
+let SIM_DB = [];
+let SIM_ID = 1;
+
+// Track which appointments have had reminders sent (by id)
+const remindedSet = new Set();
+
+// INIT
+window.addEventListener('DOMContentLoaded', () => {
+  // Pre-fill datetime to now+1h
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  d.setSeconds(0, 0);
+  document.getElementById('f-time').value = d.toISOString().slice(0, 16);
+
+  // Load saved config from localStorage
+  loadSavedConfig();
+  updateStatus();
+  loadAppointments();
+  addLog('System initialised in ' + (CONFIG.simMode ? 'SIMULATION' : 'LIVE') + ' mode.');
+
+  // Poll every 60 seconds for reminders
+  setInterval(checkReminders, 60_000);
+});
+
+// CONFIG
+function loadSavedConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('appointmint_config') || '{}');
+    if (saved.supabaseUrl) document.getElementById('cfg-supa-url').value   = saved.supabaseUrl;
+    if (saved.supabaseKey) document.getElementById('cfg-supa-key').value   = saved.supabaseKey;
+    if (saved.twilioSid)   document.getElementById('cfg-twilio-sid').value = saved.twilioSid;
+    if (saved.twilioToken) document.getElementById('cfg-twilio-token').value = saved.twilioToken;
+    if (saved.twilioFrom)  document.getElementById('cfg-twilio-from').value = saved.twilioFrom;
+    if (saved.messageType) document.getElementById('cfg-msg-type').value   = saved.messageType;
+    Object.assign(CONFIG, saved);
+    CONFIG.simMode = !(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+  } catch(_) {}
+}
+
+function saveConfig() {
+  CONFIG.supabaseUrl  = document.getElementById('cfg-supa-url').value.trim();
+  CONFIG.supabaseKey  = document.getElementById('cfg-supa-key').value.trim();
+  CONFIG.twilioSid    = document.getElementById('cfg-twilio-sid').value.trim();
+  CONFIG.twilioToken  = document.getElementById('cfg-twilio-token').value.trim();
+  CONFIG.twilioFrom   = document.getElementById('cfg-twilio-from').value.trim();
+  CONFIG.messageType  = document.getElementById('cfg-msg-type').value.trim() || 'sms';
+  CONFIG.simMode      = !(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+
+  localStorage.setItem('appointmint_config', JSON.stringify(CONFIG));
+  updateStatus();
+  addLog('Config saved. Mode: ' + (CONFIG.simMode ? 'SIMULATION' : 'LIVE'), CONFIG.simMode ? 'warning' : 'success');
+  showToast(CONFIG.simMode ? 'warning' : 'success',
+    CONFIG.simMode ? 'Running in Simulation Mode' : 'Connected to Supabase',
+    CONFIG.simMode
+      ? 'Add Supabase credentials to persist appointments.'
+      : 'Database live. ' + (CONFIG.twilioSid ? 'Twilio configured.' : 'Twilio not configured (messages simulated).')
+  );
+  loadAppointments();
+}
+
+function updateStatus() {
+  const el = document.getElementById('system-status');
+  const banner = document.getElementById('setup-banner');
+  if (!CONFIG.simMode) {
+    el.textContent = 'Live — Supabase Connected';
+    banner.style.display = 'none';
+  } else {
+    el.textContent = 'Simulation Mode';
+    banner.style.display = 'flex';
+  }
+}
+
+// SUPABASE HELPERS
+async function sbFetch(path, options = {}) {
+  const url = CONFIG.supabaseUrl + '/rest/v1' + path;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'apikey': CONFIG.supabaseKey,
+      'Authorization': 'Bearer ' + CONFIG.supabaseKey,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(_) {}
+
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error || data.hint)) || ('Supabase error ' + res.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// Ensure the appointments table exists:
+/*
+  CREATE TABLE IF NOT EXISTS appointments (
+    id          bigserial PRIMARY KEY,
+    name        text NOT NULL,
+    phone       text NOT NULL,
+    appt_time   timestamptz NOT NULL,
+    status      text DEFAULT 'pending',
+    reminded    boolean DEFAULT false,
+    created_at  timestamptz DEFAULT now()
+  );
+*/
+
+// DATABASE OPERATIONS
+async function dbInsert(record) {
+  if (CONFIG.simMode) {
+    const row = { ...record, id: SIM_ID++, created_at: new Date().toISOString(), reminded: false };
+    SIM_DB.push(row);
+    return row;
+  }
+  const [row] = await sbFetch('/appointments', {
+    method: 'POST',
+    body: JSON.stringify(record),
+  });
+  return row;
+}
+
+async function dbSelect() {
+  if (CONFIG.simMode) {
+    return [...SIM_DB].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  return sbFetch('/appointments?select=*&order=created_at.desc');
+}
+
+async function dbUpdate(id, patch) {
+  if (CONFIG.simMode) {
+    const idx = SIM_DB.findIndex(r => r.id === id);
+    if (idx !== -1) Object.assign(SIM_DB[idx], patch);
+    return;
+  }
+  await sbFetch(`/appointments?id=eq.${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    prefer: 'return=minimal',
+  });
+}
+
+// MESSAGING  — Twilio REST
+async function sendMessage(to, body) {
+  const hasTwilio = CONFIG.twilioSid && CONFIG.twilioToken && CONFIG.twilioFrom;
+
+  if (!hasTwilio) {
+    // ── SIMULATION ──────────────────────────────────────────
+    addLog(`[SIM] → ${to}: ${body}`, 'warning');
+    return { simulated: true };
+  }
+
+  // ── REAL TWILIO CALL ────────────────────────────────────────
+  const from = CONFIG.messageType === 'whatsapp'
+    ? (CONFIG.twilioFrom.startsWith('whatsapp:') ? CONFIG.twilioFrom : 'whatsapp:' + CONFIG.twilioFrom)
+    : CONFIG.twilioFrom;
+  const toNum = CONFIG.messageType === 'whatsapp'
+    ? (to.startsWith('whatsapp:') ? to : 'whatsapp:' + to)
+    : to;
+
+  const params = new URLSearchParams({ To: toNum, From: from, Body: body });
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${CONFIG.twilioSid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(CONFIG.twilioSid + ':' + CONFIG.twilioToken),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    }
+  );
+
+  // Safely parse body — Twilio sometimes returns empty body on success
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch(_) {}
+
+  if (!res.ok) {
+    // data.message is Twilio's error field; data.code is the Twilio error code
+    const detail = data.message || data.error_message || `HTTP ${res.status}`;
+    const code   = data.code ? ` (code ${data.code})` : '';
+    throw new Error(`Twilio: ${detail}${code}`);
+  }
+
+  // Success — return sid if present so caller can log it
+  return { sid: data.sid || null, status: data.status || 'sent' };
+}
+
+// SUBMIT APPOINTMENT
+async function submitAppointment() {
+  const name  = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const time  = document.getElementById('f-time').value;
+
+  if (!name || !phone || !time) {
+    showToast('error', 'Missing Fields', 'Please fill in all three fields.');
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="border-top-color:#020d06;width:14px;height:14px;border-width:2px"></div> Booking…';
+
+  try {
+    // 1. Save to DB
+    const appt = await dbInsert({
+      name,
+      phone,
+      appt_time: new Date(time).toISOString(),
+      status: 'pending',
+    });
+    addLog(`Appointment saved for ${name} (#${appt.id})`, 'success');
+
+    // 2. Send confirmation message
+    const apptDate = new Date(time);
+    const fmtDate  = apptDate.toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    const fmtTime  = apptDate.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+    const confirmMsg =
+      `Hi ${name}! ✅ Your appointment is confirmed for ${fmtDate} at ${fmtTime}. ` +
+      `We'll send you a reminder 1 hour before. Reply STOP to unsubscribe.`;
+
+    try {
+      const result = await sendMessage(phone, confirmMsg);
+      const isSimulated = result.simulated;
+      await dbUpdate(appt.id, { status: isSimulated ? 'simulated' : 'sent' });
+      addLog(
+        isSimulated
+          ? `[SIM] Confirmation message logged for ${name}`
+          : `Confirmation ${CONFIG.messageType.toUpperCase()} sent to ${phone}`,
+        'success'
+      );
+    } catch(msgErr) {
+      addLog(`Message failed: ${msgErr.message}`, 'error');
+      await dbUpdate(appt.id, { status: 'pending' });
+    }
+
+    // 3. Refresh dashboard
+    await loadAppointments();
+
+    // 4. Reset form & notify
+    document.getElementById('f-name').value  = '';
+    document.getElementById('f-phone').value = '';
+    const nd = new Date(Date.now() + 60 * 60 * 1000);
+    nd.setSeconds(0, 0);
+    document.getElementById('f-time').value = nd.toISOString().slice(0, 16);
+
+    showToast('success', 'Appointment Booked!', `Confirmation sent to ${phone}`);
+
+  } catch(err) {
+    addLog('Error: ' + err.message, 'error');
+    showToast('error', 'Booking Failed', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>📅</span> Book & Send Confirmation';
+  }
+}
+
+// LOAD APPOINTMENTS
+async function loadAppointments() {
+  const body = document.getElementById('dashboard-body');
+  try {
+    const rows = await dbSelect();
+    document.getElementById('appt-count').textContent = rows.length;
+
+    if (rows.length === 0) {
+      body.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">🗓</div>
+          <h3>No appointments yet</h3>
+          <p>Book one using the form on the left.</p>
+        </div>`;
+      return;
+    }
+
+    const now = Date.now();
+    let html = `<div class="table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th>Customer</th><th>Phone</th>
+        <th>Appointment</th><th>Countdown</th><th>Status</th>
+      </tr></thead><tbody>`;
+
+    for (const r of rows) {
+      const apptMs   = new Date(r.appt_time).getTime();
+      const diffMs   = apptMs - now;
+      const diffMin  = Math.round(diffMs / 60000);
+
+      // Countdown label
+      let cdClass, cdLabel;
+      if (diffMs < 0) {
+        cdClass = 'past'; cdLabel = 'Passed';
+      } else if (diffMin <= 60) {
+        cdClass = 'urgent'; cdLabel = diffMin + ' min';
+      } else if (diffMin <= 180) {
+        cdClass = 'soon'; cdLabel = fmtCountdown(diffMs);
+      } else {
+        cdClass = 'future'; cdLabel = fmtCountdown(diffMs);
+      }
+
+      // Date/time display
+      const d = new Date(r.appt_time);
+      const dateStr = d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+      const timeStr = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+
+      // Status chip
+      const chipMap = {
+        pending:   ['pending',   '⏳ Pending'],
+        sent:      ['sent',      '✅ Sent'],
+        simulated: ['simulated', '🔵 Simulated'],
+        reminded:  ['reminded',  '🔔 Reminded'],
+      };
+      const [chipCls, chipLbl] = chipMap[r.status] || ['pending', r.status];
+
+      html += `<tr>
+        <td style="color:var(--txt-muted);font-family:var(--mono);font-size:11px;">${r.id}</td>
+        <td class="cell-name">${esc(r.name)}</td>
+        <td class="cell-phone">${esc(r.phone)}</td>
+        <td class="cell-time">
+          ${timeStr}<br>
+          <span class="date">${dateStr}</span>
+        </td>
+        <td><span class="countdown ${cdClass}">${cdLabel}</span></td>
+        <td><span class="chip ${chipCls}"><span class="chip-dot"></span>${chipLbl}</span></td>
+      </tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+
+    // Trigger reminder check immediately after load
+    checkReminders(rows);
+
+  } catch(err) {
+    body.innerHTML = `<div class="empty"><p style="color:var(--red)">Error loading: ${esc(err.message)}</p></div>`;
+    addLog('Load error: ' + err.message, 'error');
+  }
+}
+
+// REMINDER CHECK — runs every 60 seconds
+async function checkReminders(rows) {
+  try {
+    if (!rows) rows = await dbSelect();
+    const now = Date.now();
+    for (const r of rows) {
+      if (r.reminded) continue;
+      const apptMs  = new Date(r.appt_time).getTime();
+      const diffMin = (apptMs - now) / 60000;
+
+      // Within 1 hour but not already passed
+      if (diffMin > 0 && diffMin <= 60) {
+        const key = CONFIG.simMode ? r.id : r.id;
+        if (remindedSet.has(key)) continue;
+        remindedSet.add(key);
+
+        const fmtTime = new Date(r.appt_time).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+        const reminderMsg =
+          `⏰ Reminder, ${r.name}! Your appointment is in ${Math.round(diffMin)} minutes (${fmtTime}). See you soon!`;
+
+        addLog(`Sending reminder to ${r.name} (${Math.round(diffMin)} min away)…`, 'warning');
+
+        try {
+          const result = await sendMessage(r.phone, reminderMsg);
+          const isSimulated = result.simulated;
+          await dbUpdate(r.id, { reminded: true, status: isSimulated ? 'simulated' : 'reminded' });
+          addLog(
+            isSimulated
+              ? `[SIM] Reminder logged for ${r.name}`
+              : `Reminder sent to ${r.phone}`,
+            'success'
+          );
+          await loadAppointments();
+        } catch(e) {
+          addLog('Reminder failed: ' + e.message, 'error');
+          remindedSet.delete(key); // retry next cycle
+        }
+      }
+    }
+  } catch(_) {}
+}
+
+// HELPERS
+function fmtCountdown(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function addLog(msg, type='') {
+  const log = document.getElementById('activity-log');
+  const now = new Date().toLocaleTimeString('en-IN', { hour12:false });
+  const el  = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `<span class="log-time">${now}</span><span class="log-msg ${type}">${esc(msg)}</span>`;
+  log.prepend(el);
+  // Keep max 100 entries
+  while (log.children.length > 100) log.removeChild(log.lastChild);
+}
+
+function clearLog() {
+  document.getElementById('activity-log').innerHTML = '';
+}
+
+let toastTimer;
+function showToast(type, title, msg) {
+  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  document.getElementById('toast-icon').textContent = icons[type] || 'ℹ️';
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-msg').textContent   = msg;
+  const t = document.getElementById('toast');
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = type; }, 4500);
+}
+</script>
+</body>
+</html>
